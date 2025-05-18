@@ -1,4 +1,3 @@
-// server.js
 const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
@@ -22,7 +21,6 @@ io.on('connection', socket => {
 
     console.log(`User ${userId} connected to room ${room}`);
 
-    // Obtener los demás usuarios en la sala (menos el actual)
     const clientsInRoom = [...(io.sockets.adapter.rooms.get(room) || [])]
         .filter(id => id !== socket.id)
         .map(id => {
@@ -30,15 +28,12 @@ io.on('connection', socket => {
             return { userId: s.userId, socketId: id };
         });
 
-    // Enviar al nuevo usuario la lista de usuarios actuales
+
     socket.emit('all-users', clientsInRoom);
 
-    // Notificar a otros usuarios que alguien nuevo se conectó
     socket.to(room).emit('user-joined', { userId, socketId: socket.id });
 
-    // Reenviar señales a un usuario específico
     socket.on('signal', ({ targetId, signal }) => {
-        console.log(`Signal from ${socket.userId} to ${targetId}`);
         io.to(targetId).emit('signal', {
             fromId: socket.id,
             fromUserId: socket.userId,
@@ -51,6 +46,10 @@ io.on('connection', socket => {
         socket.to(room).emit('user-left', {
             userId: socket.userId
         });
+    });
+
+    socket.on('media-toggle', ({ userId, type, enabled }) => {
+        socket.to(socket.room).emit('user-media-toggled', { userId, type, enabled });
     });
 });
 
