@@ -51,6 +51,19 @@ io.on('connection', socket => {
     socket.on('media-toggle', ({ userId, type, enabled }) => {
         socket.to(socket.room).emit('user-media-toggled', { userId, type, enabled });
     });
+
+    socket.on('initial-media-status', ({ targetId, userId, audio, video }) => {
+        socket.to(targetId).emit('user-media-toggled', {
+            userId,
+            type: "audio",
+            enabled: audio
+        });
+        socket.to(targetId).emit('user-media-toggled', {
+            userId,
+            type: "video",
+            enabled: video
+        });
+    });
 });
 
 const PORT = process.env.PORT || 3000;
