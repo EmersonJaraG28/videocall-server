@@ -14,52 +14,62 @@ const io = socketIO(server, {
 });
 
 io.on('connection', socket => {
-    const { room, userId } = socket.handshake.query;
+    const { room, userId, userUUID } = socket.handshake.query;
     socket.userId = userId;
+    socket.userUUID = userUUID;
     socket.room = room;
     socket.join(room);
 
-    console.log(`User ${userId} connected to room ${room}`);
+    console.log(`User ${userId} (${userUUID}) connected to room ${room}`);
 
     const clientsInRoom = [...(io.sockets.adapter.rooms.get(room) || [])]
         .filter(id => id !== socket.id)
         .map(id => {
             const s = io.sockets.sockets.get(id);
-            return { userId: s.userId, socketId: id };
+            return { userId: s.userId, userUUID: s.userUUID, socketId: id };
         });
 
 
     socket.emit('all-users', clientsInRoom);
 
-    socket.to(room).emit('user-joined', { userId, socketId: socket.id });
+    socket.to(room).emit('user-joined', { userId, userUUID, socketId: socket.id });
 
     socket.on('signal', ({ targetId, signal }) => {
         io.to(targetId).emit('signal', {
             fromId: socket.id,
             fromUserId: socket.userId,
+            fromUserUUID: socket.userUUID,
             signal
         });
     });
 
     socket.on('disconnect', () => {
-        console.log(`User ${socket.userId} disconnected from room ${socket.room}`);
+        console.log(`User ${socket.userId} (${socket.userUUID}) disconnected from room ${socket.room}`);
         socket.to(room).emit('user-left', {
-            userId: socket.userId
+            userId: socket.userId,
+            userUUID: socket.userUUID
         });
     });
 
-    socket.on('media-toggle', ({ userId, type, enabled }) => {
-        socket.to(socket.room).emit('user-media-toggled', { userId, type, enabled });
+    socket.on('media-toggle', ({ type, enabled }) => {
+        socket.to(socket.room).emit('user-media-toggled', {
+            userId: socket.userId,
+            userUUID: socket.userUUID,
+            type,
+            enabled
+        });
     });
 
-    socket.on('initial-media-status', ({ targetId, userId, audio, video }) => {
+    socket.on('initial-media-status', ({ targetId, audio, video }) => {
         socket.to(targetId).emit('user-media-toggled', {
-            userId,
+            userId: socket.userId,
+            userUUID: socket.userUUID,
             type: "audio",
             enabled: audio
         });
         socket.to(targetId).emit('user-media-toggled', {
-            userId,
+            userId: socket.userId,
+            userUUID: socket.userUUID,
             type: "video",
             enabled: video
         });
